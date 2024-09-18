@@ -1,3 +1,7 @@
+# 성공은 했음. 그러나 시간이 지나니 에러가 발생함
+# 메모리 문제일 수 있어서 perplexity로 이 부분 개선하려고 함
+# 변경한 코드
+
 import streamlit as st
 import tiktoken             # text, token간 변환
 
@@ -77,16 +81,24 @@ def main():
         # 9/5 ./data의 파일 자동 업로드 방식 변경.
         # txt 파일 업로드 테스트 하려면 아래 주석 처리하고 위를 주석 제거
         
-        data_folder = "./data"
-        files_to_load = ["1.개요.docx", "2.매뉴얼.docx"]
-
-        files_text = []
-        for filename in files_to_load:
-            file_path = os.path.join(data_folder, filename)
-            if os.path.exists(file_path):
-                files_text.extend(load_document(file_path))
+        
+        # 9/18 수정. 원 코드는 아예 삭제하고 새로 바꾼
+        
+        @st.cache_data
+        def load_files(data_folder, files_to_load):
+            files_text = []
+            for filename in files_to_load:
+                file_path = os.path.join(data_folder, filename)
+                if os.path.exists(file_path):
+                    files_text.extend(load_document(file_path))
             else:
                 st.warning(f"파일을 찾을 수 없습니다: {filename}")
+            return files_text
+
+        data_folder = "./data"
+        files_to_load = ["1.개요.docx", "2.매뉴얼.docx"]
+        files_text = load_files(data_folder, files_to_load)
+        
                 
         # 파일 자동 인식 방식은 여기까지임
                 
@@ -96,14 +108,19 @@ def main():
         # 입력받은 환경변수 설정 코드 삭제함
 
         # 이 아래 부분의 if process를 삭제하고 perplexity가 알려준 코드로 대체
+        # 아래 부분을 9/18 재수정함. 기존 코드 삭제하고 새 코드로 변경
+        @st.cache_resource
+        
+        def initialize_conversation(files_text, openai_api_key, model_selection):
+            text_chunks = get_text_chunks(files_text)
+            vetorestore = get_vectorstore(text_chunks)
+            return get_conversation_chain(vetorestore, openai_api_key, model_selection)
         if "conversation" not in st.session_state:
             if not openai_api_key:
                     st.info("Please add all necessary API keys and project information to continue.")
                     st.stop()
     
-    text_chunks = get_text_chunks(files_text)
-    vetorestore = get_vectorstore(text_chunks)
-    st.session_state.conversation = get_conversation_chain(vetorestore, openai_api_key, st.session_state.model_selection)
+    st.session_state.conversation = initialize_conversation(files_text, openai_api_key, st.session_state.model_selection)
     st.session_state.processComplete = True 
 
 
@@ -122,29 +139,31 @@ def main():
     # 원래 주석
 
     # Chat logic
-    if query := st.chat_input("Message to chatbot"):
+    # 9/18 변경
+    
+    def process_user_input(query):
         st.session_state.messages.append({"role": "user", "content": query})
-
         with st.chat_message("user"):
             st.markdown(query)
-
+    
         with st.chat_message("assistant"):
-            chain = st.session_state.conversation
-
             with st.spinner("Thinking..."):
-                result = chain({"question": query})
-                with get_openai_callback() as cb:
-                    st.session_state.chat_history = result['chat_history']
-                response = result['answer']
-                source_documents = result['source_documents']
-
-                st.markdown(response)
-                with st.expander("참고 문서 확인"):# 패널 생성
-                    for doc in source_documents:
-                        st.markdown(doc.metadata['source'], help=doc.page_content)
-
-        # Add assistant message to chat history
+                result = st.session_state.conversation({"question": query})
+        
+            response = result['answer']
+            source_documents = result['source_documents']
+        
+            st.markdown(response)
+        
+            with st.expander("참고 문서 확인"):
+                for doc in source_documents:
+                    st.markdown(doc.metadata['source'], help=doc.page_content)
+    
         st.session_state.messages.append({"role": "assistant", "content": response})
+
+    if query := st.chat_input("Message to chatbot"):
+        process_user_input(query)
+        
         
 def tiktoken_len(text):
     """
