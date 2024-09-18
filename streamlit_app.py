@@ -84,6 +84,9 @@ def main():
         
         # 9/18 수정. 원 코드는 아예 삭제하고 새로 바꾼
         
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        data_folder = os.path.join(current_dir, "data")
+        
         @st.cache_data
         def load_files(data_folder, files_to_load):
             files_text = []
@@ -95,7 +98,6 @@ def main():
                 st.warning(f"파일을 찾을 수 없습니다: {filename}")
             return files_text
 
-        data_folder = "./data"
         files_to_load = ["1.개요.docx", "2.매뉴얼.docx"]
         files_text = load_files(data_folder, files_to_load)
         
@@ -111,8 +113,8 @@ def main():
         # 아래 부분을 9/18 재수정함. 기존 코드 삭제하고 새 코드로 변경
         @st.cache_resource
         
-        def initialize_conversation(files_text, openai_api_key, model_selection):
-            text_chunks = get_text_chunks(files_text)
+        def initialize_conversation(_files_text, openai_api_key, model_selection):
+            text_chunks = get_text_chunks(_files_text)
             vetorestore = get_vectorstore(text_chunks)
             return get_conversation_chain(vetorestore, openai_api_key, model_selection)
         if "conversation" not in st.session_state:
