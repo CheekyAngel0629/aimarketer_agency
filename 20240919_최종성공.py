@@ -52,9 +52,10 @@ load_dotenv()
 
 
 def main():
-    st.set_page_config(page_title="RAG Chat")
+    st.set_page_config(
+        page_title="RAG Chat")
 
-    st.title("AI마케터 유통업무 Chatbot")
+    st.title("AI마케터 RAG Chatbot")
 
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
@@ -65,19 +66,13 @@ def main():
     if "processComplete" not in st.session_state:
         st.session_state.processComplete = None
 
-
-    # 9/20 사이드바 및 gpt모델 강제 선택. 원 코드 주석처리 및 새 코드 삽입
-    # with st.sidebar:
-    #    model_selection = st.selectbox(
-    #        "Choose the language model",
-    #        ("gpt-4o-mini", "gpt-3.5-turbo", "gpt-4-turbo-preview", "gpt-4o", "bnksys/yanolja-eeve-korean-instruct-10.8b"),
-    #        key="model_selection"
-    #    )   
-
-    # 9/20 아래 라인 추가    
-    st.session_state.model_selection = "gpt-4o-mini"
-
-    openai_api_key = os.getenv("OPEN_API_KEY")
+    with st.sidebar:
+        model_selection = st.selectbox(
+            "Choose the language model",
+            ("gpt-4o-mini", "gpt-3.5-turbo", "gpt-4-turbo-preview", "gpt-4o", "bnksys/yanolja-eeve-korean-instruct-10.8b"),
+            key="model_selection"
+        )   # 드롭박스 호출. 9/3 코칭시 4o-mini 추가
+        openai_api_key = os.getenv("OPEN_API_KEY")
         # api 환경변수, UI 관련 코드는 삭제하였음
         
         # 9/5 파일 업로드 없이 ./data의 파일 자동 업로드 방식 변경하면서 아래 2개 주석 처리
@@ -89,11 +84,11 @@ def main():
         
         # 9/18 수정. 원 코드는 아예 삭제하고 새로 바꾼
         
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    data_folder = os.path.join(current_dir, "data")
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        data_folder = os.path.join(current_dir, "data")
         
-    @st.cache_data
-    def load_files(data_folder, files_to_load):
+        @st.cache_data
+        def load_files(data_folder, files_to_load):
             files_text = []
             for filename in files_to_load:
                 file_path = os.path.join(data_folder, filename)
@@ -103,8 +98,8 @@ def main():
                 st.warning(f"파일을 찾을 수 없습니다: {filename}")
             return files_text
 
-    files_to_load = ["1.개요.docx", "2.매뉴얼.docx"]
-    files_text = load_files(data_folder, files_to_load)
+        files_to_load = ["1.개요.docx", "2.매뉴얼.docx"]
+        files_text = load_files(data_folder, files_to_load)
         
                 
         # 파일 자동 인식 방식은 여기까지임
@@ -116,18 +111,18 @@ def main():
 
         # 이 아래 부분의 if process를 삭제하고 perplexity가 알려준 코드로 대체
         # 아래 부분을 9/18 재수정함. 기존 코드 삭제하고 새 코드로 변경
-    @st.cache_resource
+        @st.cache_resource
         
-    def initialize_conversation(_files_text, openai_api_key):
+        def initialize_conversation(_files_text, openai_api_key, model_selection):
             text_chunks = get_text_chunks(_files_text)
             vetorestore = get_vectorstore(text_chunks)
-            return get_conversation_chain(vetorestore, openai_api_key)
-    if "conversation" not in st.session_state:
+            return get_conversation_chain(vetorestore, openai_api_key, model_selection)
+        if "conversation" not in st.session_state:
             if not openai_api_key:
                     st.info("Please add all necessary API keys and project information to continue.")
                     st.stop()
     
-    st.session_state.conversation = initialize_conversation(files_text, openai_api_key)
+    st.session_state.conversation = initialize_conversation(files_text, openai_api_key, st.session_state.model_selection)
     st.session_state.processComplete = True 
 
 
@@ -328,7 +323,7 @@ def get_vectorstore(text_chunks):
     return vectordb
 
 
-def get_conversation_chain(vetorestore, openai_api_key):
+def get_conversation_chain(vetorestore, openai_api_key, model_selection):
     """
     대화형 검색 체인을 초기화하고 반환합니다.
 
@@ -353,7 +348,10 @@ def get_conversation_chain(vetorestore, openai_api_key):
     3. 생성된 대화형 검색 체인을 반환합니다.
     """
 
-    llm = ChatOpenAI(openai_api_key=openai_api_key, model_name="gpt-4o-mini", temperature=0)
+    if model_selection.startswith('gpt'): # OpenAI의 GPT 모델
+        llm = ChatOpenAI(openai_api_key=openai_api_key, model_name=model_selection, temperature=0)
+    else: # Ollama 로컬LLM
+        llm = Ollama(model=model_selection, temperature=0)
 
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
