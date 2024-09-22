@@ -60,8 +60,8 @@ load_dotenv()
 
 def main():
     # 캐시 지우기 - 파일 찾을 수 없다는 문구 제거했으므로 주석처리함
-    # st.cache_data.clear()
-    # st.cache_resource.clear()
+    st.cache_data.clear()
+    st.cache_resource.clear()
 
     st.set_page_config(page_title="RAG Chat")
 
