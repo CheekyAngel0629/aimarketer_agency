@@ -229,6 +229,7 @@ def load_document(file_path):
         documents = loader.load()
         markdown_splitter = MarkdownTextSplitter(chunk_size=900, chunk_overlap=100)
         return markdown_splitter.split_documents(documents)
+
     else:
         return []  # 지원되지 않는 파일 유형
 
