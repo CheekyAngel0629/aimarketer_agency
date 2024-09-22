@@ -68,6 +68,13 @@ def main():
     # 9/22 추가
     nltk.download('punkt')
 
+    try:
+        nltk.download('punkt', quiet=True)
+        nltk.download('averaged_perceptron_tagger', quiet=True)
+    except Exception as e:
+        st.error(f"NLTK 데이터 다운로드 중 오류 발생: {str(e)}")
+        return
+
     st.set_page_config(page_title="RAG Chat")
 
     st.title("AI마케터 유통업무 Chatbot")
