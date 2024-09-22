@@ -5,7 +5,7 @@
 import streamlit as st
 import tiktoken             # text, token간 변환
 
-# from loguru import logger   # loguru 라이브러리에서 logger 객체 호출
+from loguru import logger   # loguru 라이브러리에서 logger 객체 호출
 import os       # 운영체제와 상호작용
 import tempfile # 임시 파일 및 임시 디렉터리를 생성하고 관리
 
@@ -14,11 +14,11 @@ import nltk
 
 from langchain.chains import ConversationalRetrievalChain
 from langchain_community.chat_models import ChatOpenAI
-# from langchain_community.llms import Ollama # LLM model
+from langchain_community.llms import Ollama # LLM model
 
-# from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import Docx2txtLoader
-# from langchain_community.document_loaders import UnstructuredPowerPointLoader
+from langchain_community.document_loaders import UnstructuredPowerPointLoader
 
 # 9/5 txt파일 인식을 위해 추가 (클로드)
 from langchain_community.document_loaders import TextLoader
@@ -115,7 +115,7 @@ def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_folder = os.path.join(current_dir, "data")
         
-    @st.cache_data(ttl =3600)
+    @st.cache_data
     def load_files(data_folder, files_to_load):
             files_text = []
             for filename in files_to_load:
@@ -140,7 +140,7 @@ def main():
 
         # 이 아래 부분의 if process를 삭제하고 perplexity가 알려준 코드로 대체
         # 아래 부분을 9/18 재수정함. 기존 코드 삭제하고 새 코드로 변경
-    @st.cache_resource(ttl=3600)
+    @st.cache_resource
         
     def initialize_conversation(_files_text, openai_api_key):
             text_chunks = get_text_chunks(_files_text)
@@ -159,7 +159,7 @@ def main():
 
     if 'messages' not in st.session_state:
         st.session_state['messages'] = [{"role": "assistant",
-                                         "content": "안녕하세요! AI마케터 유통업무 chatbot 입니다. 궁금한 점을 물어보세요."}]
+                                         "content": "안녕하세요! AI마케터 RAG chatbot 입니다. 궁금한 점을 물어보세요."}]
         
 
     for message in st.session_state.messages:
@@ -214,7 +214,9 @@ def tiktoken_len(text):
 
 # 파일 자동 업로드 방식으로 변경 (클로드)
 def load_document(file_path):
-    if file_path.endswith('.docx'):
+    if file_path.endswith('.pdf'):
+        return PyPDFLoader(file_path).load_and_split()
+    elif file_path.endswith('.docx'):
         return Docx2txtLoader(file_path).load_and_split()
     # 마크다운 양식 읽도록 변경 - 9/22
     # elif file_path.endswith('.docx'):
@@ -222,8 +224,8 @@ def load_document(file_path):
     #    documents = loader.load()
     #    markdown_splitter = MarkdownTextSplitter(chunk_size=900, chunk_overlap=100)
     #    return markdown_splitter.split_documents(documents)
-    # elif file_path.endswith('.pptx'):
-    #     return UnstructuredPowerPointLoader(file_path).load_and_split()
+    elif file_path.endswith('.pptx'):
+        return UnstructuredPowerPointLoader(file_path).load_and_split()
     elif file_path.endswith('.txt'):
         loader = TextLoader(file_path, encoding='utf-8')
         documents = loader.load()
@@ -289,7 +291,7 @@ def get_text_chunks(text):
     chunks = text_splitter.split_documents(text)
     return chunks
 
-@st.cache_resource(ttl=3600)
+
 def get_vectorstore(text_chunks):
     """
     주어진 텍스트 청크 리스트로부터 벡터 저장소를 생성합니다.
