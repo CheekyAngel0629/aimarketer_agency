@@ -216,14 +216,14 @@ def tiktoken_len(text):
 def load_document(file_path):
     if file_path.endswith('.pdf'):
         return PyPDFLoader(file_path).load_and_split()
-    # elif file_path.endswith('.docx'):
-    #    return Docx2txtLoader(file_path).load_and_split()
-    # 마크다운 양식 읽도록 변경 - 9/22
     elif file_path.endswith('.docx'):
-        loader = Docx2txtLoader(file_path)
-        documents = loader.load()
-        markdown_splitter = MarkdownTextSplitter(chunk_size=900, chunk_overlap=100)
-        return markdown_splitter.split_documents(documents)
+        return Docx2txtLoader(file_path).load_and_split()
+    # 마크다운 양식 읽도록 변경 - 9/22
+    # elif file_path.endswith('.docx'):
+    #    loader = Docx2txtLoader(file_path)
+    #    documents = loader.load()
+    #    markdown_splitter = MarkdownTextSplitter(chunk_size=900, chunk_overlap=100)
+    #    return markdown_splitter.split_documents(documents)
     elif file_path.endswith('.pptx'):
         return UnstructuredPowerPointLoader(file_path).load_and_split()
     elif file_path.endswith('.txt'):
@@ -236,11 +236,16 @@ def load_document(file_path):
         )
         return text_splitter.split_documents(documents)
     # 마크다운 확장자 추가 - 9/22
+    # elif file_path.endswith('.md'):
+    #    loader = UnstructuredMarkdownLoader(file_path)
+    #    documents = loader.load()
+    #    markdown_splitter = MarkdownTextSplitter(chunk_size=900, chunk_overlap=100)
+    #    return markdown_splitter.split_documents(documents)
     elif file_path.endswith('.md'):
-        loader = UnstructuredMarkdownLoader(file_path)
+        loader = TextLoader(file_path, encoding='utf-8')
         documents = loader.load()
-        markdown_splitter = MarkdownTextSplitter(chunk_size=900, chunk_overlap=100)
-        return markdown_splitter.split_documents(documents)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=900, chunk_overlap=100)
+        return text_splitter.split_documents(documents)
 
     else:
         return []  # 지원되지 않는 파일 유형
