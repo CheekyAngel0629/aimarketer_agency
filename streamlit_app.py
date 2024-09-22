@@ -103,8 +103,8 @@ def main():
                 file_path = os.path.join(data_folder, filename)
                 if os.path.exists(file_path):
                     files_text.extend(load_document(file_path))
-            else:
-                st.warning(f"파일을 찾을 수 없습니다: {filename}")
+                else:
+                    st.warning(f"파일을 찾을 수 없습니다: {filename}")
             return files_text
 
     files_to_load = ["1.개요.docx", "2.매뉴얼.docx"]
