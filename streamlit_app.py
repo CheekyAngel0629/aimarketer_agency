@@ -14,6 +14,7 @@ import nltk
 
 # 9.23 추가
 import asyncio
+import hashlib
 
 from langchain.chains import ConversationalRetrievalChain
 from langchain_community.chat_models import ChatOpenAI
@@ -293,12 +294,16 @@ def get_text_chunks(text):
     chunks = text_splitter.split_documents(text)
     return chunks
 
-@st.cache_resource(ttl=3600)
+
+def hash_vectorstore(vectorstore):
+    return hashlib.md5(str(id(vectorstore)).encode()).hexdigest()
+
+@st.cache_data(hash_funcs={FAISS: hash_vectorstore})
 def get_vectorstore(text_chunks):
     embeddings = HuggingFaceEmbeddings(
         model_name="jhgan/ko-sroberta-multitask",
         model_kwargs={'device': 'cpu'},
-        encode_kwargs={'normalize_embeddings': True, 'batch_size': 32}
+        encode_kwargs={'normalize_embeddings': True}
     )
     vectordb = FAISS.from_documents(text_chunks, embeddings)
     return vectordb
