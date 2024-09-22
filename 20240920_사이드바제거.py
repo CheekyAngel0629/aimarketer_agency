@@ -52,10 +52,6 @@ load_dotenv()
 
 
 def main():
-    # 캐시 지우기
-    st.cache_data.clear()
-    st.cache_resource.clear()
-
     st.set_page_config(page_title="RAG Chat")
 
     st.title("AI마케터 유통업무 Chatbot")
