@@ -299,7 +299,7 @@ def hash_vectorstore(vectorstore):
     return hashlib.md5(str(id(vectorstore)).encode()).hexdigest()
 
 @st.cache_data(hash_funcs={FAISS: hash_vectorstore})
-def get_vectorstore(text_chunks):
+def get_vectorstore(_text_chunks):
     embeddings = HuggingFaceEmbeddings(
         model_name="jhgan/ko-sroberta-multitask",
         model_kwargs={'device': 'cpu'},
