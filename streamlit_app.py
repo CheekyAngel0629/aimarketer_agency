@@ -9,6 +9,8 @@ from loguru import logger   # loguru 라이브러리에서 logger 객체 호출
 import os       # 운영체제와 상호작용
 import tempfile # 임시 파일 및 임시 디렉터리를 생성하고 관리
 
+# 9/22 추가
+import nltk
 
 from langchain.chains import ConversationalRetrievalChain
 from langchain_community.chat_models import ChatOpenAI
@@ -59,9 +61,12 @@ load_dotenv()
 
 
 def main():
-    # 캐시 지우기 - 파일 찾을 수 없다는 문구 제거했으므로 주석처리함
+    # 캐시 지우기
     st.cache_data.clear()
     st.cache_resource.clear()
+
+    # 9/22 추가
+    nltk.download('punkt')
 
     st.set_page_config(page_title="RAG Chat")
 
