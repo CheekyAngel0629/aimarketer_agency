@@ -115,7 +115,7 @@ def main():
             return files_text
 
     # 합본 파일로 변경
-    files_to_load = ["1.합본매뉴얼(마크다운)_20240920.docx"]
+    files_to_load = ["대리점_매뉴얼.md"]
     files_text = load_files(data_folder, files_to_load)
         
                 
