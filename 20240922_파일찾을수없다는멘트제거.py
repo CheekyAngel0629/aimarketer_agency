@@ -18,15 +18,8 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import UnstructuredPowerPointLoader
 
-# 9/5 txt파일 인식을 위해 추가 (클로드)
 from langchain_community.document_loaders import TextLoader
-
-
-# 9/22 마크다운 이해를 위해 추가
-from langchain_community.document_loaders import UnstructuredMarkdownLoader
-from langchain.text_splitter import MarkdownTextSplitter
-
-
+# 9/5 txt파일 인식을 위해 추가 (클로드)
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 # 긴 텍스트를 자연스러운 범위 내에서 분할
@@ -59,9 +52,9 @@ load_dotenv()
 
 
 def main():
-    # 캐시 지우기 - 파일 찾을 수 없다는 문구 제거했으므로 주석처리함
-    # st.cache_data.clear()
-    # st.cache_resource.clear()
+    # 캐시 지우기
+    st.cache_data.clear()
+    st.cache_resource.clear()
 
     st.set_page_config(page_title="RAG Chat")
 
@@ -114,8 +107,7 @@ def main():
                     st.warning(f"파일을 찾을 수 없습니다: {filename}")
             return files_text
 
-    # 합본 파일로 변경
-    files_to_load = ["1.합본매뉴얼(마크다운)_20240920.docx"]
+    files_to_load = ["1.개요.docx", "2.매뉴얼.docx"]
     files_text = load_files(data_folder, files_to_load)
         
                 
@@ -199,19 +191,63 @@ def tiktoken_len(text):
     return len(tokens)
 
 
+# 아래는 기존. 업로드 창 유지하려면 밑에 있는 것을 주석 처리
 
-# 파일 자동 업로드 방식으로 변경 (클로드)
+# def load_document(doc):
+    """
+    업로드된 문서 파일을 로드하고, 해당 포맷에 맞는 로더를 사용하여 문서를 분할합니다.
+
+    지원되는 파일 유형에 따라 적절한 문서 로더(PyPDFLoader, Docx2txtLoader, UnstructuredPowerPointLoader)를 사용하여
+    문서 내용을 로드하고 분할합니다. 지원되지 않는 파일 유형은 빈 리스트를 반환합니다.
+
+    Parameters:
+    - doc (UploadedFile): Streamlit을 통해 업로드된 파일 객체입니다.
+
+    Returns:
+    - List[Document]: 로드 및 분할된 문서 객체의 리스트입니다. 지원되지 않는 파일 유형의 경우 빈 리스트를 반환합니다.
+    """
+    """
+    # 임시 디렉토리에 파일 저장
+    temp_dir = tempfile.gettempdir()        
+    file_path = os.path.join(temp_dir, doc.name)
+
+    # 파일 쓰기. wb : 바이너리 쓰기 모드
+    with open(file_path, "wb") as file:
+        file.write(doc.getbuffer())  # 파일 내용을 임시 파일에 쓴다
+
+    # 파일 유형에 따라 적절한 로더를 사용하여 문서 로드 및 분할
+    try:
+        if file_path.endswith('.pdf'):
+            loaded_docs = PyPDFLoader(file_path).load_and_split()
+        elif file_path.endswith('.docx'):
+            loaded_docs = Docx2txtLoader(file_path).load_and_split()
+        elif file_path.endswith('.pptx'):
+            loaded_docs = UnstructuredPowerPointLoader(file_path).load_and_split()
+            # txt파일 인식 추가 9/5
+        elif file_path.endswith('.txt'):
+            loader = TextLoader(file_path, encoding='utf-8')
+            loaded_docs = loader.load()
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=900,
+                chunk_overlap=100,
+                length_function=tiktoken_len
+            )
+            loaded_docs = text_splitter.split_documents(loaded_docs)
+            # claude
+        else:
+            loaded_docs = []  # 지원되지 않는 파일 유형
+    finally:
+        os.remove(file_path)  # 작업 완료 후 임시 파일 삭제
+
+    return loaded_docs
+"""
+
+# 클로드가 준 새로운 코드 - 파일 자동 업로드 방식
 def load_document(file_path):
     if file_path.endswith('.pdf'):
         return PyPDFLoader(file_path).load_and_split()
-    # elif file_path.endswith('.docx'):
-    #    return Docx2txtLoader(file_path).load_and_split()
-    # 마크다운 양식 읽도록 변경 - 9/22
     elif file_path.endswith('.docx'):
-        loader = Docx2txtLoader(file_path)
-        documents = loader.load()
-        markdown_splitter = MarkdownTextSplitter(chunk_size=900, chunk_overlap=100)
-        return markdown_splitter.split_documents(documents)
+        return Docx2txtLoader(file_path).load_and_split()
     elif file_path.endswith('.pptx'):
         return UnstructuredPowerPointLoader(file_path).load_and_split()
     elif file_path.endswith('.txt'):
@@ -223,12 +259,6 @@ def load_document(file_path):
             length_function=tiktoken_len
         )
         return text_splitter.split_documents(documents)
-    # 마크다운 확장자 추가 - 9/22
-    elif file_path.endswith('.md'):
-        loader = UnstructuredMarkdownLoader(file_path)
-        documents = loader.load()
-        markdown_splitter = MarkdownTextSplitter(chunk_size=900, chunk_overlap=100)
-        return markdown_splitter.split_documents(documents)
     else:
         return []  # 지원되지 않는 파일 유형
 
