@@ -125,7 +125,7 @@ def main():
     def initialize_conversation(_files_text, openai_api_key):
             text_chunks = get_text_chunks(_files_text)
             vetorestore = get_vectorstore(tuple(text_chunks))
-            return get_conversation_chain(vetorestore, _openai_api_key)
+            return get_conversation_chain(vetorestore, openai_api_key)
     if "conversation" not in st.session_state:
             if not openai_api_key:
                     st.info("Please add all necessary API keys and project information to continue.")
@@ -331,7 +331,7 @@ def get_vectorstore(text_chunks):
         model_kwargs={'device': 'cpu'},
         encode_kwargs={'normalize_embeddings': True}
     )
-    vectordb = FAISS.from_documents(_text_chunks, embeddings)
+    vectordb = FAISS.from_documents(text_chunks, embeddings)
     return vectordb
 
 
