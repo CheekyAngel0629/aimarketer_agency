@@ -5,34 +5,21 @@
 import streamlit as st
 import tiktoken             # text, token간 변환
 
-# from loguru import logger   # loguru 라이브러리에서 logger 객체 호출
+from loguru import logger   # loguru 라이브러리에서 logger 객체 호출
 import os       # 운영체제와 상호작용
 import tempfile # 임시 파일 및 임시 디렉터리를 생성하고 관리
 
-# 9/22 추가
-import nltk
-
-# 9.23 추가
-import asyncio
-import hashlib
 
 from langchain.chains import ConversationalRetrievalChain
 from langchain_community.chat_models import ChatOpenAI
-# from langchain_community.llms import Ollama # LLM model
+from langchain_community.llms import Ollama # LLM model
 
-# from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import Docx2txtLoader
-# from langchain_community.document_loaders import UnstructuredPowerPointLoader
+from langchain_community.document_loaders import UnstructuredPowerPointLoader
 
-# 9/5 txt파일 인식을 위해 추가 (클로드)
 from langchain_community.document_loaders import TextLoader
-
-
-# 9/22 마크다운 이해를 위해 추가
-from langchain_community.document_loaders import UnstructuredMarkdownLoader
-from langchain.text_splitter import MarkdownTextSplitter
-
-
+# 9/5 txt파일 인식을 위해 추가 (클로드)
 
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 # 긴 텍스트를 자연스러운 범위 내에서 분할
@@ -63,40 +50,18 @@ from langchain.memory import StreamlitChatMessageHistory
 from dotenv import load_dotenv
 load_dotenv()
 
-openai_api_key = os.getenv("OPEN_API_KEY")
-if not openai_api_key:
-    raise ValueError("OPEN_API_KEY가 설정되지 않았습니다. .env 파일을 확인해주세요.")
-
 
 def main():
     # 캐시 지우기
     st.cache_data.clear()
     st.cache_resource.clear()
 
-    # 9/22 추가
-    nltk.download('punkt')
-
-    try:
-        nltk.download('punkt', quiet=True)
-        nltk.download('averaged_perceptron_tagger', quiet=True)
-    except Exception as e:
-        st.error(f"NLTK 데이터 다운로드 중 오류 발생: {str(e)}")
-        return
-
     st.set_page_config(page_title="RAG Chat")
 
     st.title("AI마케터 유통업무 Chatbot")
 
-    # if "conversation" not in st.session_state:
-    #     st.session_state.conversation = None
-
     if "conversation" not in st.session_state:
-        if not openai_api_key:
-            st.info("Please add all necessary API keys and project information to continue.")
-            st.stop()
-        files_text = "\n".join([doc.page_content for doc in files_text])
-        st.session_state.conversation = initialize_conversation(files_text, openai_api_key)
-        st.session_state.processComplete = True
+        st.session_state.conversation = None
 
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = None
@@ -131,25 +96,18 @@ def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     data_folder = os.path.join(current_dir, "data")
         
-    @st.cache_data(ttl=3600)
+    @st.cache_data
     def load_files(data_folder, files_to_load):
-        files_text = []
-        for filename in files_to_load:
-            file_path = os.path.join(data_folder, filename)
-            if os.path.exists(file_path):
-                files_text.extend(load_document(file_path))
-            else:
-                st.warning(f"파일을 찾을 수 없습니다: {filename}")
-        return files_text
+            files_text = []
+            for filename in files_to_load:
+                file_path = os.path.join(data_folder, filename)
+                if os.path.exists(file_path):
+                    files_text.extend(load_document(file_path))
+                else:
+                    st.warning(f"파일을 찾을 수 없습니다: {filename}")
+            return files_text
 
-    @st.cache_resource(ttl=3600)
-    def initialize_conversation(_files_text):
-        text_chunks = get_text_chunks(_files_text)
-        vetorestore = get_vectorstore(text_chunks)
-        return get_conversation_chain(vetorestore, openai_api_key)
-
-    # 합본 파일로 변경
-    files_to_load = ["대리점_매뉴얼.md"]
+    files_to_load = ["1.개요.docx", "2.매뉴얼.docx"]
     files_text = load_files(data_folder, files_to_load)
         
                 
@@ -162,7 +120,7 @@ def main():
 
         # 이 아래 부분의 if process를 삭제하고 perplexity가 알려준 코드로 대체
         # 아래 부분을 9/18 재수정함. 기존 코드 삭제하고 새 코드로 변경
-    @st.cache_resource(ttl=3600)
+    @st.cache_resource
         
     def initialize_conversation(_files_text, openai_api_key):
             text_chunks = get_text_chunks(_files_text)
@@ -181,7 +139,7 @@ def main():
 
     if 'messages' not in st.session_state:
         st.session_state['messages'] = [{"role": "assistant",
-                                         "content": "안녕하세요! AI마케터 유통업무 chatbot 입니다. 궁금한 점을 물어보세요."}]
+                                         "content": "안녕하세요! AI마케터 RAG chatbot 입니다. 궁금한 점을 물어보세요."}]
         
 
     for message in st.session_state.messages:
@@ -194,19 +152,24 @@ def main():
     # Chat logic
     # 9/18 변경
     
-    async def process_user_input(query):
+    def process_user_input(query):
         st.session_state.messages.append({"role": "user", "content": query})
         with st.chat_message("user"):
             st.markdown(query)
+    
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
-                result = await asyncio.to_thread(st.session_state.conversation, {"question": query})
-                response = result['answer']
-                source_documents = result['source_documents']
+                result = st.session_state.conversation({"question": query})
+        
+            response = result['answer']
+            source_documents = result['source_documents']
+        
             st.markdown(response)
+        
             with st.expander("참고 문서 확인"):
                 for doc in source_documents:
                     st.markdown(doc.metadata['source'], help=doc.page_content)
+    
         st.session_state.messages.append({"role": "assistant", "content": response})
 
     if query := st.chat_input("Message to chatbot"):
@@ -228,19 +191,65 @@ def tiktoken_len(text):
     return len(tokens)
 
 
+# 아래는 기존. 업로드 창 유지하려면 밑에 있는 것을 주석 처리
 
-# 파일 자동 업로드 방식으로 변경 (클로드)
+# def load_document(doc):
+    """
+    업로드된 문서 파일을 로드하고, 해당 포맷에 맞는 로더를 사용하여 문서를 분할합니다.
+
+    지원되는 파일 유형에 따라 적절한 문서 로더(PyPDFLoader, Docx2txtLoader, UnstructuredPowerPointLoader)를 사용하여
+    문서 내용을 로드하고 분할합니다. 지원되지 않는 파일 유형은 빈 리스트를 반환합니다.
+
+    Parameters:
+    - doc (UploadedFile): Streamlit을 통해 업로드된 파일 객체입니다.
+
+    Returns:
+    - List[Document]: 로드 및 분할된 문서 객체의 리스트입니다. 지원되지 않는 파일 유형의 경우 빈 리스트를 반환합니다.
+    """
+    """
+    # 임시 디렉토리에 파일 저장
+    temp_dir = tempfile.gettempdir()        
+    file_path = os.path.join(temp_dir, doc.name)
+
+    # 파일 쓰기. wb : 바이너리 쓰기 모드
+    with open(file_path, "wb") as file:
+        file.write(doc.getbuffer())  # 파일 내용을 임시 파일에 쓴다
+
+    # 파일 유형에 따라 적절한 로더를 사용하여 문서 로드 및 분할
+    try:
+        if file_path.endswith('.pdf'):
+            loaded_docs = PyPDFLoader(file_path).load_and_split()
+        elif file_path.endswith('.docx'):
+            loaded_docs = Docx2txtLoader(file_path).load_and_split()
+        elif file_path.endswith('.pptx'):
+            loaded_docs = UnstructuredPowerPointLoader(file_path).load_and_split()
+            # txt파일 인식 추가 9/5
+        elif file_path.endswith('.txt'):
+            loader = TextLoader(file_path, encoding='utf-8')
+            loaded_docs = loader.load()
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=900,
+                chunk_overlap=100,
+                length_function=tiktoken_len
+            )
+            loaded_docs = text_splitter.split_documents(loaded_docs)
+            # claude
+        else:
+            loaded_docs = []  # 지원되지 않는 파일 유형
+    finally:
+        os.remove(file_path)  # 작업 완료 후 임시 파일 삭제
+
+    return loaded_docs
+"""
+
+# 클로드가 준 새로운 코드 - 파일 자동 업로드 방식
 def load_document(file_path):
-    if file_path.endswith('.docx'):
+    if file_path.endswith('.pdf'):
+        return PyPDFLoader(file_path).load_and_split()
+    elif file_path.endswith('.docx'):
         return Docx2txtLoader(file_path).load_and_split()
-    # 마크다운 양식 읽도록 변경 - 9/22
-    # elif file_path.endswith('.docx'):
-    #    loader = Docx2txtLoader(file_path)
-    #    documents = loader.load()
-    #    markdown_splitter = MarkdownTextSplitter(chunk_size=900, chunk_overlap=100)
-    #    return markdown_splitter.split_documents(documents)
-    # elif file_path.endswith('.pptx'):
-    #     return UnstructuredPowerPointLoader(file_path).load_and_split()
+    elif file_path.endswith('.pptx'):
+        return UnstructuredPowerPointLoader(file_path).load_and_split()
     elif file_path.endswith('.txt'):
         loader = TextLoader(file_path, encoding='utf-8')
         documents = loader.load()
@@ -250,18 +259,6 @@ def load_document(file_path):
             length_function=tiktoken_len
         )
         return text_splitter.split_documents(documents)
-    # 마크다운 확장자 추가 - 9/22
-    # elif file_path.endswith('.md'):
-    #    loader = UnstructuredMarkdownLoader(file_path)
-    #    documents = loader.load()
-    #    markdown_splitter = MarkdownTextSplitter(chunk_size=900, chunk_overlap=100)
-    #    return markdown_splitter.split_documents(documents)
-    elif file_path.endswith('.md'):
-        loader = TextLoader(file_path, encoding='utf-8')
-        documents = loader.load()
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=900, chunk_overlap=100)
-        return text_splitter.split_documents(documents)
-
     else:
         return []  # 지원되지 않는 파일 유형
 
@@ -274,6 +271,30 @@ def get_text(docs):
 
 
 def get_text_chunks(text):
+    """
+    주어진 텍스트 목록을 특정 크기의 청크로 분할합니다.
+
+    이 함수는 'RecursiveCharacterTextSplitter'를 사용하여 텍스트를 청크로 분할합니다. 각 청크의 크기는
+    `chunk_size`에 의해 결정되며, 청크 간의 겹침은 `chunk_overlap`으로 조절됩니다. `length_function`은
+    청크의 실제 길이를 계산하는 데 사용되는 함수입니다. 이 경우, `tiktoken_len` 함수가 사용되어 각 청크의
+    토큰 길이를 계산합니다.
+
+    Parameters:
+    - text (List[str]): 분할할 텍스트 목록입니다.
+
+    Returns:
+    - List[str]: 분할된 텍스트 청크의 리스트입니다.
+
+    사용 예시:
+    텍스트 목록이 주어졌을 때, 이 함수를 호출하여 각 텍스트를 지정된 크기의 청크로 분할할 수 있습니다.
+    이렇게 분할된 청크들은 텍스트 분석, 임베딩 생성, 또는 기계 학습 모델의 입력으로 사용될 수 있습니다.
+
+
+    주의:
+    `chunk_size`와 `chunk_overlap`은 분할의 세밀함과 처리할 텍스트의 양에 따라 조절할 수 있습니다.
+    너무 작은 `chunk_size`는 처리할 청크의 수를 불필요하게 증가시킬 수 있고, 너무 큰 `chunk_size`는
+    메모리 문제를 일으킬 수 있습니다. 적절한 값을 실험을 통해 결정하는 것이 좋습니다.
+    """
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=900,
         chunk_overlap=100,
@@ -283,31 +304,71 @@ def get_text_chunks(text):
     return chunks
 
 
-def hash_vectorstore(vectorstore):
-    return hashlib.md5(str(id(vectorstore)).encode()).hexdigest()
+def get_vectorstore(text_chunks):
+    """
+    주어진 텍스트 청크 리스트로부터 벡터 저장소를 생성합니다.
 
-@st.cache_data(hash_funcs={FAISS: hash_vectorstore})
-def get_vectorstore(_text_chunks):
+    이 함수는 Hugging Face의 'jhgan/ko-sroberta-multitask' 모델을 사용하여 각 텍스트 청크의 임베딩을 계산하고,
+    이 임베딩들을 FAISS 인덱스에 저장하여 벡터 검색을 위한 저장소를 생성합니다. 이 저장소는 텍스트 청크들 간의
+    유사도 검색 등에 사용될 수 있습니다.
+
+    Parameters:
+    - text_chunks (List[str]): 임베딩을 생성할 텍스트 청크의 리스트입니다.
+
+    Returns:
+    - vectordb (FAISS): 생성된 임베딩들을 저장하고 있는 FAISS 벡터 저장소입니다.
+
+    모델 설명:
+    'jhgan/ko-sroberta-multitask'는 문장과 문단을 768차원의 밀집 벡터 공간으로 매핑하는 sentence-transformers 모델입니다.
+    클러스터링이나 의미 검색 같은 작업에 사용될 수 있습니다. KorSTS, KorNLI 학습 데이터셋으로 멀티 태스크 학습을 진행한 후,
+    KorSTS 평가 데이터셋으로 평가한 결과, Cosine Pearson 점수는 84.77, Cosine Spearman 점수는 85.60 등을 기록했습니다.
+"""
     embeddings = HuggingFaceEmbeddings(
         model_name="jhgan/ko-sroberta-multitask",
         model_kwargs={'device': 'cpu'},
         encode_kwargs={'normalize_embeddings': True}
     )
-    vectordb = FAISS.from_documents(_text_chunks, embeddings)
+    vectordb = FAISS.from_documents(text_chunks, embeddings)
     return vectordb
 
 
 def get_conversation_chain(vetorestore, openai_api_key):
+    """
+    대화형 검색 체인을 초기화하고 반환합니다.
+
+    이 함수는 주어진 벡터 저장소, OpenAI API 키, 모델 선택을 기반으로 대화형 검색 체인을 생성합니다.
+    이 체인은 사용자의 질문에 대한 답변을 생성하는 데 필요한 여러 컴포넌트를 통합합니다.
+
+    Parameters:
+    - vetorestore: 검색을 수행할 벡터 저장소입니다. 이는 문서 또는 데이터를 검색하는 데 사용됩니다.
+    - openai_api_key (str): OpenAI API를 사용하기 위한 API 키입니다.
+    - model_selection (str): 대화 생성에 사용될 언어 모델을 선택합니다. 예: 'gpt-3.5-turbo', 'gpt-4-turbo-preview'.
+
+    Returns:
+    - ConversationalRetrievalChain: 초기화된 대화형 검색 체인입니다.
+
+    함수는 다음과 같은 작업을 수행합니다:
+    1. ChatOpenAI 클래스를 사용하여 선택된 모델에 대한 언어 모델(LLM) 인스턴스를 생성합니다.
+    2. ConversationalRetrievalChain.from_llm 메소드를 사용하여 대화형 검색 체인을 구성합니다. 이 과정에서,
+       - 검색(retrieval) 단계에서 사용될 벡터 저장소와 검색 방식
+       - 대화 이력을 관리할 메모리 컴포넌트
+       - 대화 이력에서 새로운 질문을 생성하는 방법
+       - 검색된 문서를 반환할지 여부 등을 설정합니다.
+    3. 생성된 대화형 검색 체인을 반환합니다.
+    """
+
     llm = ChatOpenAI(openai_api_key=openai_api_key, model_name="gpt-4o-mini", temperature=0)
+
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         chain_type="stuff",
-        retriever=vetorestore.as_retriever(search_type='mmr', search_kwargs={"k": 3}),
+        retriever=vetorestore.as_retriever(search_type='mmr', verbose=True),
         memory=ConversationBufferMemory(memory_key='chat_history', return_messages=True, output_key='answer'),
         get_chat_history=lambda h: h,
         return_source_documents=True,
-        verbose=False
+        verbose=True
     )
+
     return conversation_chain
 
 
