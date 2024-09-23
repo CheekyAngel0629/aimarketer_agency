@@ -120,7 +120,7 @@ def main():
 
         # 이 아래 부분의 if process를 삭제하고 perplexity가 알려준 코드로 대체
         # 아래 부분을 9/18 재수정함. 기존 코드 삭제하고 새 코드로 변경
-    @st.cache_resource
+    @st.cache_resource(ttl=3600)
         
     def initialize_conversation(_files_text, openai_api_key):
             text_chunks = get_text_chunks(_files_text)
@@ -139,8 +139,11 @@ def main():
 
     if 'messages' not in st.session_state:
         st.session_state['messages'] = [{"role": "assistant",
-                                         "content": "안녕하세요! AI마케터 RAG chatbot 입니다. 궁금한 점을 물어보세요."}]
-        
+                                         "content": "안녕하세요! AI마케터 유통업무 chatbot 입니다. 궁금한 점을 물어보세요."}]
+    # 메시지 수 제한 - 9/24 추가
+    MAX_MESSAGES = 50
+    if len(st.session_state['messages']) > MAX_MESSAGES:
+        st.session_state['messages'] = st.session_state['messages'][-MAX_MESSAGES:]
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -303,7 +306,7 @@ def get_text_chunks(text):
     chunks = text_splitter.split_documents(text)
     return chunks
 
-
+@st.cache_resource(ttl=3600)   
 def get_vectorstore(text_chunks):
     """
     주어진 텍스트 청크 리스트로부터 벡터 저장소를 생성합니다.
@@ -363,7 +366,7 @@ def get_conversation_chain(vetorestore, openai_api_key):
         llm=llm,
         chain_type="stuff",
         retriever=vetorestore.as_retriever(search_type='mmr', verbose=True),
-        memory=ConversationBufferMemory(memory_key='chat_history', return_messages=True, output_key='answer'),
+        memory=ConversationBufferMemory(memory_key='chat_history', return_messages=True, output_key='answer', max_token_limit=1000),
         get_chat_history=lambda h: h,
         return_source_documents=True,
         verbose=True
