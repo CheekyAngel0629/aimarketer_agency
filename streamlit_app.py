@@ -81,11 +81,7 @@ def main():
     # 9/20 아래 라인 추가    
     st.session_state.model_selection = "gpt-4o-mini"
 
-    # openai_api_key = os.getenv("OPEN_API_KEY")
-    # 9/24 수정
-    openai_api_key = st.secrets["OPENAI_API_KEY"]
-
-
+    openai_api_key = os.getenv("OPEN_API_KEY")
         # api 환경변수, UI 관련 코드는 삭제하였음
         
         # 9/5 파일 업로드 없이 ./data의 파일 자동 업로드 방식 변경하면서 아래 2개 주석 처리
@@ -134,7 +130,6 @@ def main():
             if not openai_api_key:
                     st.info("Please add all necessary API keys and project information to continue.")
                     st.stop()
-
     
     st.session_state.conversation = initialize_conversation(files_text, openai_api_key)
     st.session_state.processComplete = True 
