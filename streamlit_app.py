@@ -63,6 +63,10 @@ from langchain.memory import StreamlitChatMessageHistory
 from dotenv import load_dotenv
 load_dotenv()
 
+openai_api_key = os.getenv("OPEN_API_KEY")
+if not openai_api_key:
+    raise ValueError("OPEN_API_KEY가 설정되지 않았습니다. .env 파일을 확인해주세요.")
+
 
 def main():
     # 캐시 지우기
@@ -139,10 +143,10 @@ def main():
         return files_text
 
     @st.cache_resource(ttl=3600)
-    def initialize_conversation(_files_text, openai_api_key):
+    def initialize_conversation(_files_text):
         text_chunks = get_text_chunks(_files_text)
-        vectorstore = get_vectorstore(text_chunks)
-        return get_conversation_chain(vectorstore, openai_api_key)  
+        vetorestore = get_vectorstore(text_chunks)
+        return get_conversation_chain(vetorestore, openai_api_key)
 
     # 합본 파일로 변경
     files_to_load = ["대리점_매뉴얼.md"]
