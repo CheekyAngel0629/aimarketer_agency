@@ -76,9 +76,6 @@ def main():
 
     st.title("AI마케터 유통업무 Chatbot")
 
-    if "conversation" not in st.session_state:
-        st.session_state.conversation = None
-
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = None
 
