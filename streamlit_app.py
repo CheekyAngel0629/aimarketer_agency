@@ -50,6 +50,22 @@ from langchain.memory import StreamlitChatMessageHistory
 from dotenv import load_dotenv
 load_dotenv()
 
+@st.cache_data
+def load_files(data_folder, files_to_load):
+        files_text = []
+        for filename in files_to_load:
+            file_path = os.path.join(data_folder, filename)
+            if os.path.exists(file_path):
+                files_text.extend(load_document(file_path))
+            else:
+                st.warning(f"파일을 찾을 수 없습니다: {filename}")
+        return files_text
+
+@st.cache_resource
+def initialize_conversation(_files_text, openai_api_key):
+        text_chunks = get_text_chunks(_files_text)
+        vetorestore = get_vectorstore(text_chunks)
+        return get_conversation_chain(vetorestore, openai_api_key)
 
 def main():
     # 캐시 지우기
@@ -93,22 +109,6 @@ def main():
         
         # 9/18 수정. 원 코드는 아예 삭제하고 새로 바꾼
         
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    data_folder = os.path.join(current_dir, "data")
-        
-    @st.cache_data
-    def load_files(data_folder, files_to_load):
-            files_text = []
-            for filename in files_to_load:
-                file_path = os.path.join(data_folder, filename)
-                if os.path.exists(file_path):
-                    files_text.extend(load_document(file_path))
-                else:
-                    st.warning(f"파일을 찾을 수 없습니다: {filename}")
-            return files_text
-
-    files_to_load = ["1.개요.docx", "2.매뉴얼.docx"]
-    files_text = load_files(data_folder, files_to_load)
         
                 
         # 파일 자동 인식 방식은 여기까지임
@@ -120,21 +120,22 @@ def main():
 
         # 이 아래 부분의 if process를 삭제하고 perplexity가 알려준 코드로 대체
         # 아래 부분을 9/18 재수정함. 기존 코드 삭제하고 새 코드로 변경
-    @st.cache_resource
         
-    def initialize_conversation(_files_text, openai_api_key):
-            text_chunks = get_text_chunks(_files_text)
-            vetorestore = get_vectorstore(text_chunks)
-            return get_conversation_chain(vetorestore, openai_api_key)
-    if "conversation" not in st.session_state:
-            if not openai_api_key:
-                    st.info("Please add all necessary API keys and project information to continue.")
-                    st.stop()
     
-    st.session_state.conversation = initialize_conversation(files_text, openai_api_key)
-    st.session_state.processComplete = True 
+    if "conversation" not in st.session_state:
+        if not openai_api_key:
+                st.info("Please add all necessary API keys and project information to continue.")
+                st.stop()
 
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        data_folder = os.path.join(current_dir, "data")
+            
 
+        files_to_load = ["1.개요.docx", "2.매뉴얼.docx"]
+        files_text = load_files(data_folder, files_to_load)
+
+        st.session_state.conversation = initialize_conversation(files_text, openai_api_key)
+        st.session_state.processComplete = True 
 
 
     if 'messages' not in st.session_state:
