@@ -14,9 +14,6 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain_community.chat_models import ChatOpenAI
 from langchain_community.llms import Ollama # LLM model
 
-# LangChainDeprecationWarning 개선
-from langchain_openai import ChatOpenAI
-
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import Docx2txtLoader
 from langchain_community.document_loaders import UnstructuredPowerPointLoader
@@ -356,7 +353,6 @@ def get_conversation_chain(vetorestore, openai_api_key):
     3. 생성된 대화형 검색 체인을 반환합니다.
     """
 
-    
     llm = ChatOpenAI(openai_api_key=openai_api_key, model_name="gpt-4o-mini", temperature=0)
 
     conversation_chain = ConversationalRetrievalChain.from_llm(
