@@ -34,6 +34,10 @@ from langchain.memory import ConversationBufferMemory
 from langchain_community.vectorstores import FAISS
 # 문서나 텍스트 임베한 후, 벡터 저장, 주어진 질문과 가장 유사한 벡터를 빠르게 검색
 
+# 9/26 추가
+import faiss
+import pickle
+
 # from streamlit_chat import message
 # Streamlit 애플리케이션에서 채팅 인터페이스를 간단하게 구현
 # 처음부터 주석처리 되어 있었음
@@ -255,7 +259,7 @@ def get_text_chunks(text):
     chunks = text_splitter.split_documents(text)
     return chunks
 
-
+@st.cache_resource
 def get_vectorstore(text_chunks):
     """
     주어진 텍스트 청크 리스트로부터 벡터 저장소를 생성합니다.
@@ -280,7 +284,23 @@ def get_vectorstore(text_chunks):
         model_kwargs={'device': 'cpu'},
         encode_kwargs={'normalize_embeddings': True}
     )
-    vectordb = FAISS.from_documents(text_chunks, embeddings)
+    
+    # 캐시 디렉토리 생성
+    cache_dir = "./.streamlit/cache"
+    os.makedirs(cache_dir, exist_ok=True)
+    index_file = os.path.join(cache_dir, "faiss_index.pkl")
+    
+    if os.path.exists(index_file):
+        # 기존 인덱스 로드
+        with open(index_file, "rb") as f:
+            vectordb = pickle.load(f)
+    else:
+        # 새 인덱스 생성
+        vectordb = FAISS.from_documents(text_chunks, embeddings)
+        # 인덱스 저장
+        with open(index_file, "wb") as f:
+            pickle.dump(vectordb, f)
+    
     return vectordb
 
 @st.cache_resource
