@@ -17,9 +17,9 @@ from langchain_community.llms import Ollama # LLM model
 # LangChainDeprecationWarning 개선
 from langchain_openai import ChatOpenAI
 
-# from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import Docx2txtLoader
-# from langchain_community.document_loaders import UnstructuredPowerPointLoader
+from langchain_community.document_loaders import UnstructuredPowerPointLoader
 
 from langchain_community.document_loaders import TextLoader
 # 9/5 txt파일 인식을 위해 추가 (클로드)
@@ -193,16 +193,15 @@ def tiktoken_len(text):
     return len(tokens)
 
 
-# 아래는 기존. 업로드 창 유지하려면 밑에 있는 것을 주석 처리
 
 # 클로드가 준 새로운 코드 - 파일 자동 업로드 방식
 def load_document(file_path):
-    # if file_path.endswith('.pdf'):
-    #     return PyPDFLoader(file_path).load_and_split()
+    if file_path.endswith('.pdf'):
+        return PyPDFLoader(file_path).load_and_split()
     if file_path.endswith('.docx'):
         return Docx2txtLoader(file_path).load_and_split()
-    # elif file_path.endswith('.pptx'):
-    #     return UnstructuredPowerPointLoader(file_path).load_and_split()
+    elif file_path.endswith('.pptx'):
+        return UnstructuredPowerPointLoader(file_path).load_and_split()
     elif file_path.endswith('.txt'):
         loader = TextLoader(file_path, encoding='utf-8')
         documents = loader.load()
@@ -284,7 +283,7 @@ def get_vectorstore(text_chunks):
     vectordb = FAISS.from_documents(text_chunks, embeddings)
     return vectordb
 
-@st.cache_resource
+
 def get_conversation_chain(vetorestore, openai_api_key):
     """
     대화형 검색 체인을 초기화하고 반환합니다.
