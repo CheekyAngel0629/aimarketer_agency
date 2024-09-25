@@ -53,7 +53,7 @@ from langchain.memory import StreamlitChatMessageHistory
 from dotenv import load_dotenv
 load_dotenv()
 
-@st.cache_data
+
 def load_files(data_folder, files_to_load):
         files_text = []
         for filename in files_to_load:
@@ -64,7 +64,7 @@ def load_files(data_folder, files_to_load):
                 st.warning(f"파일을 찾을 수 없습니다: {filename}")
         return files_text
 
-@st.cache_resource
+
 def initialize_conversation(_files_text, openai_api_key):
         text_chunks = get_text_chunks(_files_text)
         vetorestore = get_vectorstore(text_chunks)
@@ -153,7 +153,7 @@ def main():
     # Chat logic
     # 9/18 변경
     
-    @st.cache_resource
+    
     def process_user_input(query):
         st.session_state.messages.append({"role": "user", "content": query})
         with st.chat_message("user"):
@@ -215,7 +215,7 @@ def load_document(file_path):
     else:
         return []  # 지원되지 않는 파일 유형
 
-@st.cache_data
+
 def get_text(docs):
     doc_list = []
     for doc in docs:
