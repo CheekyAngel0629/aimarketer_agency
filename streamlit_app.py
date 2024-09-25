@@ -260,7 +260,7 @@ def get_text_chunks(text):
     return chunks
 
 @st.cache_resource
-def get_vectorstore(text_chunks):
+def get_vectorstore(_text_chunks):
     """
     주어진 텍스트 청크 리스트로부터 벡터 저장소를 생성합니다.
 
@@ -284,23 +284,7 @@ def get_vectorstore(text_chunks):
         model_kwargs={'device': 'cpu'},
         encode_kwargs={'normalize_embeddings': True}
     )
-    
-    # 캐시 디렉토리 생성
-    cache_dir = "./.streamlit/cache"
-    os.makedirs(cache_dir, exist_ok=True)
-    index_file = os.path.join(cache_dir, "faiss_index.pkl")
-    
-    if os.path.exists(index_file):
-        # 기존 인덱스 로드
-        with open(index_file, "rb") as f:
-            vectordb = pickle.load(f)
-    else:
-        # 새 인덱스 생성
-        vectordb = FAISS.from_documents(text_chunks, embeddings)
-        # 인덱스 저장
-        with open(index_file, "wb") as f:
-            pickle.dump(vectordb, f)
-    
+    vectordb = FAISS.from_documents(_text_chunks, embeddings)
     return vectordb
 
 @st.cache_resource
