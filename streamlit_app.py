@@ -17,9 +17,9 @@ from langchain_community.llms import Ollama # LLM model
 # LangChainDeprecationWarning 개선
 from langchain_openai import ChatOpenAI
 
-from langchain_community.document_loaders import PyPDFLoader
+# from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.document_loaders import Docx2txtLoader
-from langchain_community.document_loaders import UnstructuredPowerPointLoader
+# from langchain_community.document_loaders import UnstructuredPowerPointLoader
 
 from langchain_community.document_loaders import TextLoader
 # 9/5 txt파일 인식을 위해 추가 (클로드)
@@ -53,6 +53,7 @@ from langchain.memory import StreamlitChatMessageHistory
 from dotenv import load_dotenv
 load_dotenv()
 
+@st.cache_data
 def load_files(data_folder, files_to_load):
         files_text = []
         for filename in files_to_load:
@@ -63,6 +64,7 @@ def load_files(data_folder, files_to_load):
                 st.warning(f"파일을 찾을 수 없습니다: {filename}")
         return files_text
 
+@st.cache_resource
 def initialize_conversation(_files_text, openai_api_key):
         text_chunks = get_text_chunks(_files_text)
         vetorestore = get_vectorstore(text_chunks)
@@ -151,6 +153,7 @@ def main():
     # Chat logic
     # 9/18 변경
     
+    @st.cache_resource
     def process_user_input(query):
         st.session_state.messages.append({"role": "user", "content": query})
         with st.chat_message("user"):
@@ -192,63 +195,14 @@ def tiktoken_len(text):
 
 # 아래는 기존. 업로드 창 유지하려면 밑에 있는 것을 주석 처리
 
-# def load_document(doc):
-    """
-    업로드된 문서 파일을 로드하고, 해당 포맷에 맞는 로더를 사용하여 문서를 분할합니다.
-
-    지원되는 파일 유형에 따라 적절한 문서 로더(PyPDFLoader, Docx2txtLoader, UnstructuredPowerPointLoader)를 사용하여
-    문서 내용을 로드하고 분할합니다. 지원되지 않는 파일 유형은 빈 리스트를 반환합니다.
-
-    Parameters:
-    - doc (UploadedFile): Streamlit을 통해 업로드된 파일 객체입니다.
-
-    Returns:
-    - List[Document]: 로드 및 분할된 문서 객체의 리스트입니다. 지원되지 않는 파일 유형의 경우 빈 리스트를 반환합니다.
-    """
-    """
-    # 임시 디렉토리에 파일 저장
-    temp_dir = tempfile.gettempdir()        
-    file_path = os.path.join(temp_dir, doc.name)
-
-    # 파일 쓰기. wb : 바이너리 쓰기 모드
-    with open(file_path, "wb") as file:
-        file.write(doc.getbuffer())  # 파일 내용을 임시 파일에 쓴다
-
-    # 파일 유형에 따라 적절한 로더를 사용하여 문서 로드 및 분할
-    try:
-        if file_path.endswith('.pdf'):
-            loaded_docs = PyPDFLoader(file_path).load_and_split()
-        elif file_path.endswith('.docx'):
-            loaded_docs = Docx2txtLoader(file_path).load_and_split()
-        elif file_path.endswith('.pptx'):
-            loaded_docs = UnstructuredPowerPointLoader(file_path).load_and_split()
-            # txt파일 인식 추가 9/5
-        elif file_path.endswith('.txt'):
-            loader = TextLoader(file_path, encoding='utf-8')
-            loaded_docs = loader.load()
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=900,
-                chunk_overlap=100,
-                length_function=tiktoken_len
-            )
-            loaded_docs = text_splitter.split_documents(loaded_docs)
-            # claude
-        else:
-            loaded_docs = []  # 지원되지 않는 파일 유형
-    finally:
-        os.remove(file_path)  # 작업 완료 후 임시 파일 삭제
-
-    return loaded_docs
-"""
-
 # 클로드가 준 새로운 코드 - 파일 자동 업로드 방식
 def load_document(file_path):
-    if file_path.endswith('.pdf'):
-        return PyPDFLoader(file_path).load_and_split()
-    elif file_path.endswith('.docx'):
+    # if file_path.endswith('.pdf'):
+    #     return PyPDFLoader(file_path).load_and_split()
+    if file_path.endswith('.docx'):
         return Docx2txtLoader(file_path).load_and_split()
-    elif file_path.endswith('.pptx'):
-        return UnstructuredPowerPointLoader(file_path).load_and_split()
+    # elif file_path.endswith('.pptx'):
+    #     return UnstructuredPowerPointLoader(file_path).load_and_split()
     elif file_path.endswith('.txt'):
         loader = TextLoader(file_path, encoding='utf-8')
         documents = loader.load()
@@ -261,7 +215,7 @@ def load_document(file_path):
     else:
         return []  # 지원되지 않는 파일 유형
 
-
+@st.cache_data
 def get_text(docs):
     doc_list = []
     for doc in docs:
@@ -330,7 +284,7 @@ def get_vectorstore(text_chunks):
     vectordb = FAISS.from_documents(text_chunks, embeddings)
     return vectordb
 
-
+@st.cache_resource
 def get_conversation_chain(vetorestore, openai_api_key):
     """
     대화형 검색 체인을 초기화하고 반환합니다.
