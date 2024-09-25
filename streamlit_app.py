@@ -255,7 +255,7 @@ def get_text_chunks(text):
     chunks = text_splitter.split_documents(text)
     return chunks
 
-@st.cache_resource(allow_output_mutation=True)
+@st.cache_resource
 def get_vectorstore(text_chunks):
     """
     주어진 텍스트 청크 리스트로부터 벡터 저장소를 생성합니다.
