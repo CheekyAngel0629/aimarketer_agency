@@ -288,7 +288,7 @@ def get_vectorstore(_text_chunks):
     return vectordb
 
 @st.cache_resource
-def get_conversation_chain(vetorestore, openai_api_key):
+def get_conversation_chain(_vetorestore, openai_api_key):
     """
     대화형 검색 체인을 초기화하고 반환합니다.
 
@@ -319,7 +319,7 @@ def get_conversation_chain(vetorestore, openai_api_key):
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         chain_type="stuff",
-        retriever=vetorestore.as_retriever(search_type='mmr', verbose=True),
+        retriever=_vetorestore.as_retriever(search_type='mmr', verbose=True),
         memory=ConversationBufferMemory(memory_key='chat_history', return_messages=True, output_key='answer'),
         get_chat_history=lambda h: h,
         return_source_documents=True,
