@@ -91,6 +91,8 @@ def check_memory_usage():
     memory_use = psutil.virtual_memory().percent
     if memory_use > 80:  # 메모리 사용량이 80%를 넘으면 경고
         st.warning(f"High memory usage: {memory_use}%")
+    else:
+        st.info(f"Current memory usage: {memory_use}%")
     return memory_use
 
 # 주기적으로 가비지 컬렉션 실행 및 메모리 체크
