@@ -8,6 +8,7 @@ import tiktoken             # text, token간 변환
 # 9/26 추가
 import gc
 import psutil
+import asyncio
 
 from loguru import logger   # loguru 라이브러리에서 logger 객체 호출
 import os       # 운영체제와 상호작용
@@ -76,7 +77,7 @@ def load_files(data_folder, files_to_load):
                 st.warning(f"파일을 찾을 수 없습니다: {filename}")
         return files_text
 
-@st.cache_resource
+@st.cache_resource(ttl=3600)  # 1시간마다 갱신
 def initialize_conversation(_files_text, openai_api_key):
         text_chunks = get_text_chunks(_files_text)
         vetorestore = get_vectorstore(text_chunks)
@@ -85,6 +86,15 @@ def initialize_conversation(_files_text, openai_api_key):
 
 
 
+
+
+# 메모리 사용량 체크 및 정리 함수
+def check_and_clean_memory():
+    memory_use = psutil.virtual_memory().percent
+    if memory_use > 80:
+        gc.collect()
+        st.warning(f"High memory usage: {memory_use}%. Cleaning up...")
+    return memory_use
 
 # 아래 2개 함수는 9/26 추가
 # 메모리 사용량 모니터링 함수
@@ -97,6 +107,7 @@ def check_memory_usage():
     return memory_use
 
 # 주기적으로 가비지 컬렉션 실행 및 메모리 체크
+@st.cache_resource(ttl=300)  # 5분마다 갱신
 def periodic_cleanup():
     gc.collect()
     memory_use = check_memory_usage()
@@ -110,11 +121,18 @@ def auto_cleanup(force=False):
         periodic_cleanup()
 
 
+# 대화 기록 제한 함수
+def limit_conversation_history(messages, max_messages=50):
+    return messages[-max_messages:]
+
 def main():
     st.set_page_config(page_title="RAG Chat")
 
     # 메모리 사용량 표시
     memory_placeholder = st.empty()
+
+    # 주기적인 메모리 체크 및 정리
+    periodic_cleanup()
 
     # 주기적인 메모리 체크 및 정리
     auto_cleanup()
@@ -208,8 +226,10 @@ def main():
 
     if 'messages' not in st.session_state:
         st.session_state['messages'] = [{"role": "assistant",
-                                         "content": "안녕하세요! AI마케터 RAG chatbot 입니다. 궁금한 점을 물어보세요."}]
-        
+                                         "content": "안녕하세요! AI마케터 유통업무 chatbot 입니다. 궁금한 점을 물어보세요."}]
+       
+    if 'messages' in st.session_state:
+        st.session_state['messages'] = limit_conversation_history(st.session_state['messages'])
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):      # avatar를 넣는 등 variation 가능
@@ -234,7 +254,7 @@ def main():
         
             st.markdown(response)
         
-            with st.expander("참고 문서 확인"):
+            with st.expander("매뉴얼 참고 내역 확인"):
                 for doc in source_documents:
                     st.markdown(doc.metadata['source'], help=doc.page_content)
     
@@ -243,13 +263,42 @@ def main():
         # 대화 처리 후 메모리 정리
         auto_cleanup()
 
-    if query := st.chat_input("Message to chatbot"):
+    if query := st.chat_input("유통업무에 대해 물어보세요"):
         process_user_input(query)
+        auto_cleanup()  # 사용자 입력 처리 후 메모리 정리
 
     # 메모리 사용량 지속적 업데이트
     memory_placeholder.info(f"Current memory usage: {psutil.virtual_memory().percent}%")
         
-        
+
+# 비동기 처리를 위한 함수
+async def process_user_input_async(query):
+    result = await asyncio.to_thread(st.session_state.conversation, {"question": query})
+    return result
+
+# 사용자 입력 처리 함수 수정
+def process_user_input(query):
+    st.session_state.messages.append({"role": "user", "content": query})
+    with st.chat_message("user"):
+        st.markdown(query)
+
+    with st.chat_message("assistant"):
+        with st.spinner("Thinking..."):
+            try:
+                result = asyncio.run(process_user_input_async(query))
+                response = result['answer']
+                source_documents = result['source_documents']
+                st.markdown(response)
+                with st.expander("참고 문서 확인"):
+                    for doc in source_documents:
+                        st.markdown(doc.metadata['source'], help=doc.page_content)
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            except Exception as e:
+                st.error(f"An error occurred: {str(e)}")
+    
+    # 메모리 체크 및 정리
+    check_and_clean_memory()
+
 def tiktoken_len(text):
     """
     주어진 텍스트에 대한 토큰 길이를 계산합니다.
