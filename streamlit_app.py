@@ -87,6 +87,15 @@ def initialize_conversation(_files_text, openai_api_key):
 
 
 
+def check_resource_usage():
+    memory_use = psutil.virtual_memory().percent
+    cpu_use = psutil.cpu_percent()
+    if memory_use > 80 or cpu_use > 80:
+        st.warning(f"High resource usage: Memory {memory_use}%, CPU {cpu_use}%")
+    else:
+        st.info(f"Current resource usage: Memory {memory_use}%, CPU {cpu_use}%")
+    return memory_use, cpu_use
+
 
 # 메모리 사용량 체크 및 정리 함수
 def check_and_clean_memory():
@@ -110,9 +119,9 @@ def check_memory_usage():
 @st.cache_resource(ttl=300)  # 5분마다 갱신
 def periodic_cleanup():
     gc.collect()
-    memory_use = check_memory_usage()
+    memory_use, cpu_use = check_resource_usage()
     st.session_state['last_memory_check'] = memory_use
-    st.session_state['last_cleanup_time'] = time.time()
+    st.session_state['last_cpu_check'] = cpu_use
 
 def auto_cleanup(force=False):
     current_time = time.time()
@@ -125,11 +134,12 @@ def auto_cleanup(force=False):
 def limit_conversation_history(messages, max_messages=50):
     return messages[-max_messages:]
 
+
 def main():
     st.set_page_config(page_title="RAG Chat")
 
     # 메모리 사용량 표시
-    memory_placeholder = st.empty()
+    resource_placeholder = st.empty()
 
     # 주기적인 메모리 체크 및 정리
     periodic_cleanup()
@@ -137,12 +147,16 @@ def main():
     # 주기적인 메모리 체크 및 정리
     auto_cleanup()
 
-    # 주기적인 메모리 체크 및 정리
-    current_time = time.time()
-    if 'last_cleanup_time' not in st.session_state or \
-       (current_time - st.session_state.get('last_cleanup_time', 0) > 300):  # 5분마다 정리
+    # 주기적인 리소스 체크 및 정리
+    if 'last_memory_check' not in st.session_state or 'last_cpu_check' not in st.session_state:
         periodic_cleanup()
     
+
+    # 리소스 사용량 업데이트
+    memory_use = st.session_state.get('last_memory_check', 0)
+    cpu_use = st.session_state.get('last_cpu_check', 0)
+    resource_placeholder.info(f"Current resource usage: Memory {memory_use}%, CPU {cpu_use}%")
+
     # 캐시 지우기
     st.cache_data.clear()
     st.cache_resource.clear()
@@ -265,7 +279,13 @@ def main():
 
     if query := st.chat_input("유통업무에 대해 물어보세요"):
         process_user_input(query)
-        auto_cleanup()  # 사용자 입력 처리 후 메모리 정리
+        # 대화 처리 후 리소스 체크
+        periodic_cleanup()
+    
+    # 리소스 사용량 업데이트
+    memory_use = st.session_state.get('last_memory_check', 0)
+    cpu_use = st.session_state.get('last_cpu_check', 0)
+    st.info(f"Current resource usage: Memory {memory_use}%, CPU {cpu_use}%")
 
     # 메모리 사용량 지속적 업데이트
     memory_placeholder.info(f"Current memory usage: {psutil.virtual_memory().percent}%")
