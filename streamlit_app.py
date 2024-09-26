@@ -100,17 +100,14 @@ def periodic_cleanup():
     st.session_state['last_memory_check'] = memory_use
 
 
-st.set_page_config(page_title="RAG Chat")
+
 
 def main():
-    st.title("Resource-Optimized Streamlit App")
+    st.set_page_config(page_title="RAG Chat")
 
     # 주기적인 메모리 체크 및 정리
     if 'last_memory_check' not in st.session_state:
         periodic_cleanup()
-    
-     
-    # st.set_page_config(page_title="RAG Chat")
     
     # 캐시 지우기
     st.cache_data.clear()
@@ -175,19 +172,19 @@ def main():
 
         st.session_state.conversation = initialize_conversation(files_text, openai_api_key)
         
-        # 9/26 추가
-        @st.cache_data(ttl=3600)  # 1시간마다 캐시 갱신
-        def process_large_data():
-            # 큰 데이터 처리 로직
-            result = ...
-            del large_data  # 처리 후 즉시 삭제
-            return result
+    # 9/26 추가
+    @st.cache_data(ttl=600)  # 10분 캐시 갱신
+    def process_large_data():
+        # 큰 데이터 처리 로직
+        result = ...
+        del large_data  # 처리 후 즉시 삭제
+        return result
 
-        # 주기적으로 메모리 체크
-        if st.button("Check Memory"):
-            periodic_cleanup()
+    # 주기적으로 메모리 체크
+    if st.button("Check Memory"):
+        periodic_cleanup()
 
-        st.session_state.processComplete = True 
+    st.session_state.processComplete = True 
 
 
     if 'messages' not in st.session_state:
