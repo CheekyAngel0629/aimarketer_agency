@@ -65,7 +65,7 @@ from langchain.memory import StreamlitChatMessageHistory
 from dotenv import load_dotenv
 load_dotenv()
 
-@st.cache_data
+@st.cache_data(ttl=3600, max_entries=10)  # 1시간 후 만료, 최대 10개 항목 저장
 def load_files(data_folder, files_to_load):
         files_text = []
         for filename in files_to_load:
@@ -120,7 +120,9 @@ def main():
     auto_cleanup()
 
     # 주기적인 메모리 체크 및 정리
-    if 'last_memory_check' not in st.session_state:
+    current_time = time.time()
+    if 'last_cleanup_time' not in st.session_state or \
+       (current_time - st.session_state.get('last_cleanup_time', 0) > 300):  # 5분마다 정리
         periodic_cleanup()
     
     # 캐시 지우기
@@ -134,6 +136,9 @@ def main():
 
     if "processComplete" not in st.session_state:
         st.session_state.processComplete = None
+
+    if 'large_object' in st.session_state:
+        del st.session_state['large_object']
 
 
     # 9/20 사이드바 및 gpt모델 강제 선택. 원 코드 주석처리 및 새 코드 삽입
@@ -195,8 +200,8 @@ def main():
         return result
 
     # 주기적으로 메모리 체크
-    if st.button("Force Memory Cleanup"):
-        auto_cleanup(force=True)
+    # if st.button("Force Memory Cleanup"):
+    #    auto_cleanup(force=True)
 
     st.session_state.processComplete = True 
 
