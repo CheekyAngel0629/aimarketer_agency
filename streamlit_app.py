@@ -5,6 +5,10 @@
 import streamlit as st
 import tiktoken             # text, token간 변환
 
+# 9/26 추가
+import gc
+import psutil
+
 from loguru import logger   # loguru 라이브러리에서 logger 객체 호출
 import os       # 운영체제와 상호작용
 import tempfile # 임시 파일 및 임시 디렉터리를 생성하고 관리
@@ -52,6 +56,9 @@ from langchain.memory import StreamlitChatMessageHistory
 # os.environ["LANGCHAIN_TRACING_V2"]="true"
 # os.environ["LANGCHAIN_ENDPOINT"]="https://api.smith.langchain.com"
 
+
+
+
 # .env 파일에 저장된 환경 변수를 파이썬에서 사용할 수 있도록 메모리에 불러옴
 # 9/3 코칭시 추가
 from dotenv import load_dotenv
@@ -74,8 +81,34 @@ def initialize_conversation(_files_text, openai_api_key):
         vetorestore = get_vectorstore(text_chunks)
         return get_conversation_chain(vetorestore, openai_api_key)
 
+
+
+
+
+# 아래 2개 함수는 9/26 추가
+# 메모리 사용량 모니터링 함수
+def check_memory_usage():
+    memory_use = psutil.virtual_memory().percent
+    if memory_use > 80:  # 메모리 사용량이 80%를 넘으면 경고
+        st.warning(f"High memory usage: {memory_use}%")
+    return memory_use
+
+# 주기적으로 가비지 컬렉션 실행 및 메모리 체크
+def periodic_cleanup():
+    gc.collect()
+    memory_use = check_memory_usage()
+    st.session_state['last_memory_check'] = memory_use
+
+
 def main():
-    # 캐시 지우기
+    st.title("Resource-Optimized Streamlit App")
+
+    # 주기적인 메모리 체크 및 정리
+    if 'last_memory_check' not in st.session_state:
+        periodic_cleanup()
+    
+     
+        # 캐시 지우기
     st.cache_data.clear()
     st.cache_resource.clear()
 
@@ -139,6 +172,19 @@ def main():
         files_text = load_files(data_folder, files_to_load)
 
         st.session_state.conversation = initialize_conversation(files_text, openai_api_key)
+        
+        # 9/26 추가
+        @st.cache_data(ttl=3600)  # 1시간마다 캐시 갱신
+        def process_large_data():
+            # 큰 데이터 처리 로직
+            result = ...
+            del large_data  # 처리 후 즉시 삭제
+            return result
+
+        # 주기적으로 메모리 체크
+        if st.button("Check Memory"):
+            periodic_cleanup()
+
         st.session_state.processComplete = True 
 
 
@@ -151,12 +197,10 @@ def main():
         with st.chat_message(message["role"]):      # avatar를 넣는 등 variation 가능
             st.markdown(message["content"])
 
-    # history = StreamlitChatMessageHistory(key="chat_messages")
-    # 원래 주석
 
-    # Chat logic
-    # 9/18 변경
-    
+
+
+
     
     def process_user_input(query):
         st.session_state.messages.append({"role": "user", "content": query})
@@ -327,6 +371,9 @@ def get_conversation_chain(_vetorestore, openai_api_key):
     )
 
     return conversation_chain
+
+
+
 
 
 
