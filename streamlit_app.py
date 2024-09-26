@@ -41,6 +41,7 @@ from langchain_community.vectorstores import FAISS
 # 9/26 추가
 import faiss
 import pickle
+import time
 
 # from streamlit_chat import message
 # Streamlit 애플리케이션에서 채팅 인터페이스를 간단하게 구현
@@ -100,12 +101,23 @@ def periodic_cleanup():
     gc.collect()
     memory_use = check_memory_usage()
     st.session_state['last_memory_check'] = memory_use
+    st.session_state['last_cleanup_time'] = time.time()
 
-
+def auto_cleanup(force=False):
+    current_time = time.time()
+    if force or ('last_cleanup_time' not in st.session_state) or \
+       (current_time - st.session_state.get('last_cleanup_time', 0) > 180):  # 3분마다 체크
+        periodic_cleanup()
 
 
 def main():
     st.set_page_config(page_title="RAG Chat")
+
+    # 메모리 사용량 표시
+    memory_placeholder = st.empty()
+
+    # 주기적인 메모리 체크 및 정리
+    auto_cleanup()
 
     # 주기적인 메모리 체크 및 정리
     if 'last_memory_check' not in st.session_state:
@@ -183,8 +195,8 @@ def main():
         return result
 
     # 주기적으로 메모리 체크
-    if st.button("Check Memory"):
-        periodic_cleanup()
+    if st.button("Force Memory Cleanup"):
+        auto_cleanup(force=True)
 
     st.session_state.processComplete = True 
 
@@ -223,8 +235,14 @@ def main():
     
         st.session_state.messages.append({"role": "assistant", "content": response})
 
+        # 대화 처리 후 메모리 정리
+        auto_cleanup()
+
     if query := st.chat_input("Message to chatbot"):
         process_user_input(query)
+
+    # 메모리 사용량 지속적 업데이트
+    memory_placeholder.info(f"Current memory usage: {psutil.virtual_memory().percent}%")
         
         
 def tiktoken_len(text):
