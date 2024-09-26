@@ -100,6 +100,8 @@ def periodic_cleanup():
     st.session_state['last_memory_check'] = memory_use
 
 
+st.set_page_config(page_title="RAG Chat")
+
 def main():
     st.title("Resource-Optimized Streamlit App")
 
@@ -108,7 +110,7 @@ def main():
         periodic_cleanup()
     
      
-    st.set_page_config(page_title="RAG Chat")
+    # st.set_page_config(page_title="RAG Chat")
     
     # 캐시 지우기
     st.cache_data.clear()
