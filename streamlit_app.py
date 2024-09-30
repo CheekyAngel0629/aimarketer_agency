@@ -39,10 +39,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 @st.cache_data
-def load_files(data_folder, files_to_load):
+def load_files(_data_folder, _files_to_load):
         files_text = []
-        for filename in files_to_load:
-            file_path = os.path.join(data_folder, filename)
+        for filename in _files_to_load:
+            file_path = os.path.join(_data_folder, filename)
             if os.path.exists(file_path):
                 files_text.extend(load_document(file_path))
             else:
