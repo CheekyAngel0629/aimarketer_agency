@@ -37,13 +37,6 @@ from langchain.memory import StreamlitChatMessageHistory
 # 채팅 메시지 기록을 관리하는 클래스
 
 
-# 사용량 표기를 위한 라이브러리
-import psutil
-import threading
-import time
-from datetime import datetime
-
-
 # .env 파일에 저장된 환경 변수를 파이썬에서 사용할 수 있도록 메모리에 불러옴
 # 9/3 코칭시 추가
 from dotenv import load_dotenv
@@ -70,20 +63,6 @@ def main():
     st.cache_resource.clear()
 
     st.set_page_config(page_title="AI마케터")
-
-    # 사이드바 사용량 표기 추가
-    sidebar_placeholder = st.sidebar.empty()
-
-    def update_metrics():
-        while True:
-            memory_usage = psutil.virtual_memory().percent
-            cpu_usage = psutil.cpu_percent(interval=1)
-            current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
-            sidebar_placeholder.text(f"{current_time}\nMemory {memory_usage:.1f}%, CPU {cpu_usage:.1f}%")
-            time.sleep(60)  # 1분 대기
-
-    # 백그라운드에서 메트릭 업데이트 시작
-    threading.Thread(target=update_metrics, daemon=True).start()
 
     st.title("AI마케터 유통업무 Chatbot")
 
