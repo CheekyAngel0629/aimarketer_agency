@@ -40,14 +40,14 @@ load_dotenv()
 
 @st.cache_data
 def load_files(_data_folder, _files_to_load):
-        files_text = []
-        for filename in _files_to_load:
-            file_path = os.path.join(_data_folder, filename)
-            if os.path.exists(file_path):
-                files_text.extend(load_document(file_path))
-            else:
-                st.warning(f"파일을 찾을 수 없습니다: {filename}")
-        return files_text
+    files_text = []
+    for filename in _files_to_load:
+        file_path = os.path.join(_data_folder, filename)
+        if os.path.exists(file_path):
+            files_text.extend(load_document(file_path))
+        else:
+            st.warning(f"파일을 찾을 수 없습니다: {filename}")
+    return files_text
 
 def initialize_conversation(_files_text, openai_api_key):
         text_chunks = get_text_chunks(_files_text)
@@ -99,8 +99,11 @@ def main():
         files_to_load = ["1.개요.docx", "2.매뉴얼.docx"]
         files_text = load_files(data_folder, files_to_load)
 
-        st.session_state.conversation = initialize_conversation(files_text, openai_api_key)
-        st.session_state.processComplete = True 
+        text_chunks = get_text_chunks(files_text)
+        vectorstore = get_vectorstore(text_chunks)
+
+        st.session_state.conversation = get_conversation_chain(vectorstore, openai_api_key)
+        st.session_state.processComplete = True
 
 
     if 'messages' not in st.session_state:
@@ -118,20 +121,21 @@ def main():
         st.session_state.messages.append({"role": "user", "content": query})
         with st.chat_message("user"):
             st.markdown(query)
-    
+
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 result = st.session_state.conversation({"question": query})
         
             response = result['answer']
-            source_documents = result['source_documents']
+            source_documents = result.get('source_documents', [])
         
             st.markdown(response)
         
-            with st.expander("참고 문서 확인"):
-                for doc in source_documents:
-                    st.markdown(doc.metadata['source'], help=doc.page_content)
-    
+            if source_documents:
+                with st.expander("참고 문서 확인"):
+                    for doc in source_documents:
+                        st.markdown(doc.metadata['source'], help=doc.page_content)
+
         st.session_state.messages.append({"role": "assistant", "content": response})
 
     if query := st.chat_input("Message to chatbot"):
@@ -181,7 +185,7 @@ def get_text_chunks(_text):
     chunks = text_splitter.split_documents(_text)
     return chunks
 
-@st.cache_data
+@st.cache_resource
 def get_vectorstore(_text_chunks):
     embeddings = HuggingFaceEmbeddings(
         model_name="jhgan/ko-sroberta-multitask",
@@ -192,19 +196,18 @@ def get_vectorstore(_text_chunks):
     return vectordb
 
 
-def get_conversation_chain(vetorestore, openai_api_key):
-    llm = ChatOpenAI(openai_api_key=openai_api_key, model_name="gpt-4o-mini", temperature=0)
-
+@st.cache_resource
+def get_conversation_chain(_vetorestore, _openai_api_key):
+    llm = ChatOpenAI(openai_api_key=_openai_api_key, model_name="gpt-4o-mini", temperature=0)
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         chain_type="stuff",
-        retriever=vetorestore.as_retriever(search_type='mmr', verbose=True),
+        retriever=_vetorestore.as_retriever(search_type='mmr', verbose=True),
         memory=ConversationBufferMemory(memory_key='chat_history', return_messages=True, output_key='answer'),
         get_chat_history=lambda h: h,
         return_source_documents=True,
         verbose=True
     )
-
     return conversation_chain
 
 
