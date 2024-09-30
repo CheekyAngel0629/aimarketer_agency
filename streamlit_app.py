@@ -172,23 +172,23 @@ def get_text(docs):
     return doc_list
 
 @st.cache_data
-def get_text_chunks(text):
+def get_text_chunks(_text):
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=900,
         chunk_overlap=100,
         length_function=tiktoken_len
     )
-    chunks = text_splitter.split_documents(text)
+    chunks = text_splitter.split_documents(_text)
     return chunks
 
 @st.cache_data
-def get_vectorstore(text_chunks):
+def get_vectorstore(_text_chunks):
     embeddings = HuggingFaceEmbeddings(
         model_name="jhgan/ko-sroberta-multitask",
         model_kwargs={'device': 'cpu'},
         encode_kwargs={'normalize_embeddings': True}
     )
-    vectordb = FAISS.from_documents(text_chunks, embeddings)
+    vectordb = FAISS.from_documents(_text_chunks, embeddings)
     return vectordb
 
 
