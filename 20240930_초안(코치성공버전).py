@@ -61,7 +61,7 @@ def main():
     st.cache_data.clear()
     st.cache_resource.clear()
 
-    st.set_page_config(page_title="RAG Chat")
+    st.set_page_config(page_title="AI마케터")
 
     st.title("AI마케터 유통업무 Chatbot")
 
