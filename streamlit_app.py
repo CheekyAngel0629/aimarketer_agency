@@ -1,7 +1,3 @@
-# 성공은 했음. 그러나 시간이 지나니 에러가 발생함
-# 메모리 문제일 수 있어서 perplexity로 이 부분 개선하려고 함
-# 변경한 코드
-
 import streamlit as st
 import tiktoken             # text, token간 변환
 
@@ -42,6 +38,7 @@ from langchain.memory import StreamlitChatMessageHistory
 from dotenv import load_dotenv
 load_dotenv()
 
+@st.cache_data
 def load_files(data_folder, files_to_load):
         files_text = []
         for filename in files_to_load:
@@ -174,7 +171,7 @@ def get_text(docs):
         doc_list.extend(load_document(doc))
     return doc_list
 
-
+@st.cache_data
 def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=900,
@@ -184,7 +181,7 @@ def get_text_chunks(text):
     chunks = text_splitter.split_documents(text)
     return chunks
 
-
+@st.cache_data
 def get_vectorstore(text_chunks):
     embeddings = HuggingFaceEmbeddings(
         model_name="jhgan/ko-sroberta-multitask",

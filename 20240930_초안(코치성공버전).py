@@ -1,6 +1,4 @@
-# 성공은 했음. 그러나 시간이 지나니 에러가 발생함
-# 메모리 문제일 수 있어서 perplexity로 이 부분 개선하려고 함
-# 변경한 코드
+# 코치 수정한 버전. 성공하긴 했으나 일정 시간 경과시 자원 문제 발생
 
 import streamlit as st
 import tiktoken             # text, token간 변환
