@@ -49,15 +49,13 @@ def load_files(_data_folder, _files_to_load):
             st.warning(f"파일을 찾을 수 없습니다: {filename}")
     return files_text
 
+@st.cache_resource
 def initialize_conversation(_files_text, openai_api_key):
         text_chunks = get_text_chunks(_files_text)
         vetorestore = get_vectorstore(text_chunks)
         return get_conversation_chain(vetorestore, openai_api_key)
 
 def main():
-    # 캐시 지우기
-    st.cache_data.clear()
-    st.cache_resource.clear()
 
     st.set_page_config(page_title="AI마케터")
 
